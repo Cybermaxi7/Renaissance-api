@@ -9,12 +9,14 @@ import { Category } from './categories/entities/category.entity';
 import { Media } from './media/entities/media.entity';
 import { Match } from './matches/entities/match.entity';
 import { Bet } from './bets/entities/bet.entity';
+import { PlayerCardMetadata } from './player-card-metadata/entities/player-card-metadata.entity';
 import configuration from './config/configuration';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { AuthModule } from './auth/auth.module';
 import { BetsModule } from './bets/bets.module';
 import { MatchesModule } from './matches/matches.module';
+import { PlayerCardMetadataModule } from './player-card-metadata/player-card-metadata.module';
 import { validate } from './common/config/env.validation';
 
 @Module({
@@ -51,14 +53,15 @@ import { validate } from './common/config/env.validation';
       Media,
       Match,
       Bet,
+      PlayerCardMetadata,
     ]),
     AuthModule,
     BetsModule,
     MatchesModule,
+    PlayerCardMetadataModule,
   ],
   controllers: [],
   providers: [
-    AppService,
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
