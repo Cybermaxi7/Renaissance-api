@@ -66,12 +66,12 @@ export class User extends BaseEntity {
   @Column({ name: 'last_login_at', nullable: true })
   lastLoginAt: Date;
 
-  @OneToMany(() => Post, (post) => post.author)
+  @OneToMany(() => Post, (post) => post.author, { cascade: true })
   posts: Post[];
 
-  @OneToMany(() => Comment, (comment) => comment.author)
+  @OneToMany(() => Comment, (comment) => comment.author, { cascade: true })
   comments: Comment[];
 
-  @OneToMany(() => Bet, (bet) => bet.user)
+  @OneToMany(() => Bet, (bet) => bet.user, { cascade: true })
   bets: Bet[];
 }
