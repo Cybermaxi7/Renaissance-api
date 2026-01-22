@@ -10,6 +10,7 @@ import { Comment } from './comments/entities/comment.entity';
 import { Category } from './categories/entities/category.entity';
 import { Media } from './media/entities/media.entity';
 import configuration from './config/configuration';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import configuration from './config/configuration';
       inject: [ConfigService],
     }),
     TypeOrmModule.forFeature([User, Post, Comment, Category, Media]),
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],
