@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { getDatabaseConfig } from './config/database.config';
+import { getTypeOrmConfig } from './database/typeorm.config';
 import { User } from './users/entities/user.entity';
 import { Post } from './posts/entities/post.entity';
 import { Comment } from './comments/entities/comment.entity';
@@ -44,9 +44,9 @@ import { validate } from './common/config/env.validation';
       }),
     }),
     TypeOrmModule.forRootAsync({
-      imports: [ConfigModule],
-      useFactory: getDatabaseConfig,
-      inject: [ConfigService],
+     imports: [ConfigModule],
+     inject: [ConfigService],
+     useFactory: (configService: ConfigService) => getTypeOrmConfig(configService),
     }),
     TypeOrmModule.forFeature([
       User,

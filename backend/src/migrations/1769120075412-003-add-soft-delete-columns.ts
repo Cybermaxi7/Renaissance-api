@@ -1,6 +1,6 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class 003AddSoftDeleteColumns1769120075412 implements MigrationInterface {
+export class AddSoftDeleteColumns0031769120075412 implements MigrationInterface {
 
     public async up(queryRunner: QueryRunner): Promise<void> {
     }
