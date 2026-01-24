@@ -1,10 +1,25 @@
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { AppModule } from './app.module';
+import { Request, Response, NextFunction } from 'express';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // Backward compatibility middleware
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (!req.url.startsWith('/api/') && req.url !== '/favicon.ico') {
+      req.url = `/api/v1${req.url}`;
+    }
+    next();
+  });
+
+  app.setGlobalPrefix('api');
+  app.enableVersioning({
+    type: VersioningType.URI,
+    defaultVersion: '1',
+  });
 
   // Global validation pipeline
   app.useGlobalPipes(
