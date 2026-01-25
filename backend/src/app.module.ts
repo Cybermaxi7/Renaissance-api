@@ -13,6 +13,7 @@ import { PlayerCardMetadata } from './player-card-metadata/entities/player-card-
 import { Prediction } from './predictions/entities/prediction.entity';
 import { FreeBetVoucher } from './free-bet-vouchers/entities/free-bet-voucher.entity';
 import { Spin } from './spin/entities/spin.entity';
+import { SpinSession } from './spin/entities/spin-session.entity';
 import configuration from './config/configuration';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
@@ -52,9 +53,9 @@ import { SpinModule } from './spin/spin.module';
       }),
     }),
     TypeOrmModule.forRootAsync({
-     imports: [ConfigModule],
-     inject: [ConfigService],
-     useFactory: (configService: ConfigService) => getTypeOrmConfig(configService),
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => getTypeOrmConfig(configService),
     }),
     TypeOrmModule.forFeature([
       User,
@@ -68,6 +69,7 @@ import { SpinModule } from './spin/spin.module';
       Prediction,
       FreeBetVoucher,
       Spin,
+      SpinSession,
     ]),
     AuthModule,
     BetsModule,
@@ -77,7 +79,7 @@ import { SpinModule } from './spin/spin.module';
     PredictionsModule,
     FreeBetVouchersModule,
     SpinModule,
-    LeaderboardModule,
+    LeaderboardsModule,
   ],
   controllers: [],
   providers: [
@@ -87,4 +89,4 @@ import { SpinModule } from './spin/spin.module';
     },
   ],
 })
-export class AppModule {}
+export class AppModule { }
