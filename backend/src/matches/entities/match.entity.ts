@@ -1,20 +1,9 @@
 import { Column, Entity, OneToMany, Index } from 'typeorm';
 import { BaseEntity } from '../../common/entities/base.entity';
 import { Prediction } from '../../predictions/entities/prediction.entity';
+import { MatchStatus, MatchOutcome } from '../../common/enums/match.enums';
 
-export enum MatchStatus {
-  UPCOMING = 'upcoming',
-  LIVE = 'live',
-  FINISHED = 'finished',
-  CANCELLED = 'cancelled',
-  POSTPONED = 'postponed',
-}
-
-export enum MatchOutcome {
-  HOME_WIN = 'home_win',
-  AWAY_WIN = 'away_win',
-  DRAW = 'draw',
-}
+export { MatchStatus, MatchOutcome };
 
 @Entity('matches')
 @Index(['status'])

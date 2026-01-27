@@ -1,0 +1,115 @@
+import {
+  Controller,
+  Post,
+  Param,
+  Body,
+  UseGuards,
+  Request,
+  Get,
+  Query,
+  ParseUUIDPipe,
+} from '@nestjs/common';
+import { AdminService } from './admin.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { UserRole } from '../users/entities/user.entity';
+import { CancelBetDto, CorrectBalanceDto, CorrectMatchDto } from './dto/admin.dto';
+import { Bet } from '../bets/entities/bet.entity';
+import { User } from '../users/entities/user.entity';
+import { Match } from '../matches/entities/match.entity';
+import { AdminAuditLog, AdminActionType } from './entities/admin-audit-log.entity';
+
+@Controller('admin')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserRole.ADMIN)
+export class AdminController {
+  constructor(private readonly adminService: AdminService) {}
+
+  /**
+   * Cancel a pending bet and refund the stake
+   * POST /admin/bets/:id/cancel
+   */
+  @Post('bets/:id/cancel')
+  async cancelBet(
+    @Param('id', new ParseUUIDPipe()) betId: string,
+    @Body() dto: CancelBetDto,
+    @Request() req: any,
+  ): Promise<{ message: string; bet: Bet }> {
+    const bet = await this.adminService.cancelBet(betId, req.user.id, dto);
+    return {
+      message: 'Bet cancelled successfully and stake refunded',
+      bet,
+    };
+  }
+
+  /**
+   * Correct a user's wallet balance
+   * POST /admin/users/:id/balance
+   */
+  @Post('users/:id/balance')
+  async correctBalance(
+    @Param('id', new ParseUUIDPipe()) userId: string,
+    @Body() dto: CorrectBalanceDto,
+    @Request() req: any,
+  ): Promise<{ message: string; user: User }> {
+    const user = await this.adminService.correctBalance(userId, req.user.id, dto);
+    return {
+      message: 'Balance corrected successfully',
+      user,
+    };
+  }
+
+  /**
+   * Correct match details (scores)
+   * POST /admin/matches/:id/correct
+   */
+  @Post('matches/:id/correct')
+  async correctMatch(
+    @Param('id', new ParseUUIDPipe()) matchId: string,
+    @Body() dto: CorrectMatchDto,
+    @Request() req: any,
+  ): Promise<{ message: string; match: Match }> {
+    const match = await this.adminService.correctMatch(matchId, req.user.id, dto);
+    return {
+      message: 'Match details corrected successfully',
+      match,
+    };
+  }
+
+  /**
+   * Get audit logs with optional filtering
+   * GET /admin/audit-logs?actionType=bet_cancelled&page=1&limit=50
+   */
+  @Get('audit-logs')
+  async getAuditLogs(
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 50,
+    @Query('actionType') actionType?: AdminActionType,
+  ): Promise<{ data: AdminAuditLog[]; total: number; page: number; limit: number }> {
+    const result = await this.adminService.getAuditLogs(page, limit, actionType);
+    return {
+      ...result,
+      page,
+      limit,
+    };
+  }
+
+  /**
+   * Get audit logs for a specific user
+   * GET /admin/users/:id/audit-logs
+   */
+  @Get('users/:id/audit-logs')
+  async getUserAuditLogs(
+    @Param('id', new ParseUUIDPipe()) userId: string,
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 50,
+  ): Promise<{ data: AdminAuditLog[]; total: number; page: number; limit: number }> {
+    const result = await this.adminService.getUserAuditLogs(userId, page, limit);
+    return {
+      ...result,
+      page,
+      limit,
+    };
+  }
+}

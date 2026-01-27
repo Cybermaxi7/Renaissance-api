@@ -1,5 +1,5 @@
 import { IsEnum, IsNumber, IsOptional, Min } from 'class-validator';
-import { MatchStatus, MatchOutcome } from '../entities/match.entity';
+import { MatchStatus, MatchOutcome } from '../../common/enums/match.enums';
 
 export class UpdateMatchStatusDto {
   @IsEnum(MatchStatus)

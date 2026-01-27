@@ -6,7 +6,8 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Match, MatchStatus, MatchOutcome } from './entities/match.entity';
+import { Match } from './entities/match.entity';
+import { MatchStatus, MatchOutcome } from '../common/enums/match.enums';
 import {
   CreateMatchDto,
   UpdateMatchDto,

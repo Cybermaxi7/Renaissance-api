@@ -6,7 +6,7 @@ import {
   Min,
   IsEnum,
 } from 'class-validator';
-import { MatchOutcome } from '../entities/match.entity';
+import { MatchOutcome } from '../../common/enums/match.enums';
 
 export class UpdateMatchDto extends PartialType(CreateMatchDto) {
   @IsOptional()
