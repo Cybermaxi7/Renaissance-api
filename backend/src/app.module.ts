@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, MiddlewareConsumer } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -36,6 +36,10 @@ import { AdminModule } from './admin/admin.module';
 import { LeaderboardModule } from './leaderboard/leaderboard.module';
 import { UserLeaderboardStats } from './leaderboard/entities/user-leaderboard-stats.entity';
 import { ReconciliationModule } from './reconciliation/reconciliation.module';
+
+import { LoggerModule } from './common/logger/logger.module';
+import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware';
+
 
 @Module({
   imports: [
@@ -95,6 +99,7 @@ import { ReconciliationModule } from './reconciliation/reconciliation.module';
     CacheConfigModule,
     AdminModule,
     ReconciliationModule,
+    LoggerModule,
   ],
   controllers: [],
   providers: [
@@ -104,4 +109,8 @@ import { ReconciliationModule } from './reconciliation/reconciliation.module';
     },
   ],
 })
-export class AppModule {}
+export class AppModule {
+    configure(consumer: MiddlewareConsumer) {
+    consumer.apply(CorrelationIdMiddleware).forRoutes('*');
+  }
+}

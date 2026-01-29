@@ -6,7 +6,12 @@ import { Request, Response, NextFunction } from 'express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule);    
+
+  const logger = app.get(AppLogger);
+
+     app.useGlobalInterceptors(new LoggingInterceptor(logger));
+      app.useGlobalFilters(new GlobalExceptionFilter(logger));
 
   // Backward compatibility middleware
   app.use((req: Request, res: Response, next: NextFunction) => {
@@ -65,6 +70,7 @@ async function bootstrap() {
       operationsSorter: 'alpha',
     },
   });
+  
 
   const configService = app.get(ConfigService);
   const port = configService.get<number>('app.port') ?? 3000;
