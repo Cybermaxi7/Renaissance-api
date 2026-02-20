@@ -16,6 +16,7 @@ import {
   SpinEligibilityDto 
 } from './dto/spin-game.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CriticalAction } from '../common/decorators/critical-action.decorator';
 
 @ApiTags('Spin Game')
 @Controller('spin-game')
@@ -36,6 +37,7 @@ export class SpinGameController {
   }
 
   @Post('spin')
+  @CriticalAction('spin_game.spin')
   @ApiOperation({ summary: 'Execute a spin' })
   @ApiResponse({ 
     status: HttpStatus.CREATED, 

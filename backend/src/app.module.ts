@@ -41,6 +41,7 @@ import { LoggerModule } from './common/logger/logger.module';
 import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware';
 import { SpinGameModule } from './spin-game/spin-game.module';
 import { Leaderboard } from './leaderboard/entities/leaderboard.entity';
+import { CircuitBreakerGuard } from './auth/guards/circuit-breaker.guard';
 
 
 @Module({
@@ -104,6 +105,10 @@ import { Leaderboard } from './leaderboard/entities/leaderboard.entity';
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: CircuitBreakerGuard,
     },
   ],
 })

@@ -20,6 +20,7 @@ import { SettlementService } from './settlement.service';
 import { Settlement, SettlementStatus } from './entities/settlement.entity';
 import { BackendExecutorAction } from '../auth/decorators/contract-roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
+import { CriticalAction } from '../common/decorators/critical-action.decorator';
 
 class SettleBetDto {
   outcome: string;
@@ -37,6 +38,7 @@ export class SettlementController {
    * Requires BACKEND_EXECUTOR or ADMIN role
    */
   @Post('bets/:betId/settle')
+  @CriticalAction('blockchain.settlement.settle_bet')
   @BackendExecutorAction('settle_bet')
   @ApiParam({ name: 'betId', description: 'Bet ID to settle' })
   @ApiOperation({
@@ -64,6 +66,7 @@ export class SettlementController {
    * Requires BACKEND_EXECUTOR or ADMIN role
    */
   @Post('reconcile')
+  @CriticalAction('blockchain.settlement.reconcile')
   @BackendExecutorAction('reconcile_settlements')
   @ApiOperation({
     summary: 'Reconcile pending settlements',

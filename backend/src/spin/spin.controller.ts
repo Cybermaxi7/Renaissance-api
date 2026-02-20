@@ -19,6 +19,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { SpinService } from './spin.service';
 import { CreateSpinDto } from './dto/create-spin.dto';
 import { SpinResultDto } from './dto/spin-result.dto';
+import { CriticalAction } from '../common/decorators/critical-action.decorator';
 
 /**
  * Controller for secure spin operations with provably fair randomness
@@ -38,6 +39,7 @@ export class SpinController {
   constructor(private readonly spinService: SpinService) {}
 
   @Post()
+  @CriticalAction('spin.execute')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Execute a spin',

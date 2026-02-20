@@ -35,6 +35,7 @@ import { RolesGuard, Roles } from '../common/guards/roles.guard';
 import { OwnershipGuard } from '../common/guards/ownership.guard';
 import { UserRole } from '../users/entities/user.entity';
 import { Bet } from './entities/bet.entity';
+import { CriticalAction } from '../common/decorators/critical-action.decorator';
 
 interface AuthenticatedRequest extends Request {
   user: {
@@ -52,6 +53,7 @@ export class BetsController {
   constructor(private readonly betsService: BetsService) {}
 
   @Post()
+  @CriticalAction('bets.place')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Place a bet on a match',
@@ -301,6 +303,7 @@ export class BetsController {
   }
 
   @Patch(':betId/status')
+  @CriticalAction('bets.update_status')
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN)
   @ApiOperation({
@@ -338,6 +341,7 @@ export class BetsController {
   }
 
   @Post('settle')
+  @CriticalAction('bets.settle')
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN)
   @HttpCode(HttpStatus.OK)
@@ -377,6 +381,7 @@ export class BetsController {
   }
 
   @Patch(':betId/cancel')
+  @CriticalAction('bets.cancel')
   @UseGuards(OwnershipGuard({ entity: Bet, ownerField: 'user' }))
   @ApiOperation({
     summary: 'Cancel a bet',

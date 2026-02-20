@@ -1,10 +1,10 @@
 import {
   Controller,
   Post,
+  Get,
   Body,
   UseGuards,
   Req,
-  Logger,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -14,50 +14,47 @@ import {
 } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { EmergencyPauseGuard, EMERGENCY_PAUSE_KEY } from '../auth/guards/emergency-pause.guard';
-import { EmergencyPauseAction } from '../auth/decorators/contract-roles.decorator';
-import { SetMetadata } from '@nestjs/common';
-
-// Emergency action metadata decorator
-export const EmergencyAction = (action: string, description: string) =>
-  SetMetadata(EMERGENCY_PAUSE_KEY, { action, description });
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { UserRole } from '../users/entities/user.entity';
+import {
+  EmergencyPauseService,
+  EmergencyPauseStatus,
+} from './emergency-pause.service';
 
 class EmergencyPauseDto {
   reason: string;
-  contractAddress?: string;
 }
 
 class EmergencyUnpauseDto {
   reason: string;
-  contractAddress?: string;
 }
 
 @ApiTags('Emergency Actions')
 @Controller('admin/emergency')
-@UseGuards(JwtAuthGuard, EmergencyPauseGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserRole.ADMIN)
 @ApiBearerAuth('JWT-auth')
 export class EmergencyController {
-  private readonly logger = new Logger(EmergencyController.name);
+  constructor(private readonly emergencyPauseService: EmergencyPauseService) {}
 
   /**
-   * Emergency pause all contract operations
+   * Emergency pause all critical operations
    * POST /admin/emergency/pause
-   * Requires EMERGENCY_PAUSE or ADMIN role
+   * Requires ADMIN role
    */
   @Post('pause')
-  @EmergencyPauseAction('emergency_pause_contracts')
-  @EmergencyAction('pause_contracts', 'Emergency pause of all smart contract operations')
   @ApiOperation({
-    summary: 'Emergency pause contracts',
-    description: 'Immediately pause all smart contract operations. Requires EMERGENCY_PAUSE or ADMIN role.',
+    summary: 'Emergency pause critical operations',
+    description: 'Immediately pause all critical operations. Requires ADMIN role.',
   })
   @ApiResponse({
     status: 200,
-    description: 'Contracts paused successfully',
+    description: 'Critical operations paused successfully',
     schema: {
       example: {
         success: true,
-        action: 'emergency_pause',
+        action: 'paused',
         timestamp: '2026-01-22T10:30:00Z',
         pausedBy: 'user-id',
         reason: 'Security incident detected',
@@ -66,7 +63,7 @@ export class EmergencyController {
   })
   @ApiResponse({
     status: 403,
-    description: 'Forbidden - requires EMERGENCY_PAUSE or ADMIN role',
+    description: 'Forbidden - requires ADMIN role',
   })
   async emergencyPause(
     @Body() dto: EmergencyPauseDto,
@@ -74,39 +71,33 @@ export class EmergencyController {
   ): Promise<{
     success: boolean;
     action: string;
-    timestamp: string;
+    status: EmergencyPauseStatus;
+    timestamp: string | null;
     pausedBy: string;
     reason: string;
-    contractAddress?: string;
   }> {
-    const userId = (req as any).user?.id;
-
-    this.logger.warn(`EMERGENCY PAUSE initiated by user ${userId}: ${dto.reason}`);
-
-    // TODO: Implement actual contract pause logic via SorobanService
-    // await this.sorobanService.emergencyPause(dto.contractAddress);
+    const userId = (req as any).user?.userId || (req as any).user?.id || null;
+    const status = await this.emergencyPauseService.pause(dto.reason, userId);
 
     return {
       success: true,
-      action: 'emergency_pause',
-      timestamp: new Date().toISOString(),
+      action: 'paused',
+      status,
+      timestamp: status.pausedAt,
       pausedBy: userId,
       reason: dto.reason,
-      contractAddress: dto.contractAddress,
     };
   }
 
   /**
-   * Emergency unpause contract operations
+   * Emergency unpause critical operations
    * POST /admin/emergency/unpause
-   * Requires EMERGENCY_PAUSE or ADMIN role
+   * Requires ADMIN role
    */
   @Post('unpause')
-  @EmergencyPauseAction('emergency_unpause_contracts')
-  @EmergencyAction('unpause_contracts', 'Emergency unpause of smart contract operations')
   @ApiOperation({
-    summary: 'Emergency unpause contracts',
-    description: 'Resume smart contract operations after emergency pause. Requires EMERGENCY_PAUSE or ADMIN role.',
+    summary: 'Emergency unpause critical operations',
+    description: 'Resume critical operations after emergency pause. Requires ADMIN role.',
   })
   @ApiResponse({
     status: 200,
@@ -114,7 +105,7 @@ export class EmergencyController {
   })
   @ApiResponse({
     status: 403,
-    description: 'Forbidden - requires EMERGENCY_PAUSE or ADMIN role',
+    description: 'Forbidden - requires ADMIN role',
   })
   async emergencyUnpause(
     @Body() dto: EmergencyUnpauseDto,
@@ -122,25 +113,21 @@ export class EmergencyController {
   ): Promise<{
     success: boolean;
     action: string;
+    status: EmergencyPauseStatus;
     timestamp: string;
     unpausedBy: string;
     reason: string;
-    contractAddress?: string;
   }> {
-    const userId = (req as any).user?.id;
-
-    this.logger.warn(`EMERGENCY UNPAUSE initiated by user ${userId}: ${dto.reason}`);
-
-    // TODO: Implement actual contract unpause logic via SorobanService
-    // await this.sorobanService.emergencyUnpause(dto.contractAddress);
+    const userId = (req as any).user?.userId || (req as any).user?.id || null;
+    const status = await this.emergencyPauseService.unpause(dto.reason, userId);
 
     return {
       success: true,
-      action: 'emergency_unpause',
+      action: 'unpaused',
+      status,
       timestamp: new Date().toISOString(),
       unpausedBy: userId,
       reason: dto.reason,
-      contractAddress: dto.contractAddress,
     };
   }
 
@@ -150,8 +137,6 @@ export class EmergencyController {
    * Requires EMERGENCY_PAUSE or ADMIN role
    */
   @Post('freeze-user')
-  @EmergencyPauseAction('emergency_freeze_user')
-  @EmergencyAction('freeze_user', 'Emergency freeze of user account and funds')
   @ApiOperation({
     summary: 'Emergency freeze user account',
     description: 'Immediately freeze a user account and prevent all transactions. Requires EMERGENCY_PAUSE or ADMIN role.',
@@ -173,8 +158,6 @@ export class EmergencyController {
   }> {
     const adminId = (req as any).user?.id;
 
-    this.logger.warn(`EMERGENCY FREEZE initiated by admin ${adminId} for user ${dto.userId}: ${dto.reason}`);
-
     // TODO: Implement user freeze logic
 
     return {
@@ -192,22 +175,17 @@ export class EmergencyController {
    * GET /admin/emergency/status
    * Check current emergency pause status
    */
-  @Post('status')
-  @EmergencyPauseAction('emergency_status_check')
-  @EmergencyAction('status_check', 'Check emergency pause status')
+  @Get('status')
   @ApiOperation({
     summary: 'Emergency status check',
-    description: 'Check the current emergency pause status of contracts.',
+    description: 'Check the current global emergency pause status.',
   })
   async emergencyStatus(): Promise<{
     paused: boolean;
-    pausedAt?: string;
-    pausedBy?: string;
-    reason?: string;
+    pausedAt: string | null;
+    pausedBy: string | null;
+    reason: string | null;
   }> {
-    // TODO: Implement status check logic
-    return {
-      paused: false,
-    };
+    return this.emergencyPauseService.getStatus();
   }
 }
