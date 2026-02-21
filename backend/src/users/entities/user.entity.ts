@@ -7,9 +7,15 @@ import { Transaction } from '../../transactions/entities/transaction.entity';
 import { Prediction } from '../../predictions/entities/prediction.entity';
 
 export enum UserRole {
-  ADMIN = 'admin',
-  MODERATOR = 'moderator',
+  // Standard user roles
   USER = 'user',
+  MODERATOR = 'moderator',
+  
+  // Privileged contract action roles
+  ADMIN = 'admin',
+  BACKEND_EXECUTOR = 'backend_executor',
+  ORACLE = 'oracle',
+  EMERGENCY_PAUSE = 'emergency_pause',
 }
 
 export enum UserStatus {

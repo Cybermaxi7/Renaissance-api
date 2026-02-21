@@ -18,6 +18,7 @@ import {
 import { PredictionsService } from './predictions.service';
 import { CreatePredictionDto } from './dto/create-prediction.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CriticalAction } from '../common/decorators/critical-action.decorator';
 
 @ApiTags('Predictions')
 @Controller('predictions')
@@ -27,6 +28,7 @@ export class PredictionsController {
   constructor(private readonly predictionsService: PredictionsService) {}
 
   @Post()
+  @CriticalAction('predictions.create')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Create a match prediction',

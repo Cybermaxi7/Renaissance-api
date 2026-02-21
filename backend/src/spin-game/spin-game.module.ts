@@ -11,6 +11,7 @@ import {
   FreeBetReward, 
   NFTReward 
 } from './entities';
+import { RateLimitModule } from '../rate-limit/rate-limit.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import {
     ]),
     ConfigModule,
     JwtModule,
+    RateLimitModule,
   ],
   controllers: [SpinGameController],
   providers: [SpinGameService, SpinGameRepository],

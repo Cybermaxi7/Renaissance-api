@@ -12,4 +12,9 @@ pub enum ContractError {
     InsufficientBalance = 6,
     TransferFailed = 7,
     InvalidStatus = 8,
+    SpinAlreadyExecuted = 9,
+    InvalidSignature = 10,
+    InvalidSpinHash = 11,
+    SpinNotFound = 12,
+    DuplicateOperation = 13,
 }

@@ -1,6 +1,6 @@
 #![no_std]
 
-use soroban_sdk::{contract, contractimpl, Address, Env, String, Vec, U256, Symbol};
+use soroban_sdk::{contract, contractimpl, Address, BytesN, Env, String, Symbol, U256, Vec};
 
 mod errors;
 mod events;
@@ -12,7 +12,10 @@ pub use events::*;
 pub use storage::*;
 pub use token::*;
 
-use common::{NFTMintEvent, NFT_MINT_EVENT, create_nft_mint_event};
+use common::{
+    cleanup_operation, create_nft_mint_event, ensure_not_replayed, is_operation_executed,
+    ContractError, NFTMintEvent, NFT_MINT_EVENT,
+};
 
 #[contract]
 pub struct PlayerCardContract;
@@ -42,10 +45,23 @@ impl PlayerCardContract {
         env.events().publish((NFT_MINT_EVENT,), event);
     }
 
-    /// Mint a new player card NFT to the specified recipient
-    pub fn mint(env: Env, to: Address, token_uri: String) -> u64 {
+    /// Mint a new player card NFT to the specified recipient.
+    /// operation_hash must be unique to guarantee idempotent execution.
+    pub fn mint(
+        env: Env,
+        operation_hash: BytesN<32>,
+        to: Address,
+        token_uri: String,
+        ttl_seconds: Option<u64>,
+    ) -> Result<u64, ContractError> {
         let admin = storage::get_admin(&env);
         admin.require_auth();
+        ensure_not_replayed(
+            &env,
+            Symbol::new(&env, "nft_mint"),
+            operation_hash,
+            ttl_seconds,
+        )?;
 
         let token_id = storage::get_next_token_id(&env);
         storage::increment_next_token_id(&env);
@@ -68,7 +84,15 @@ impl PlayerCardContract {
 
         env.events().publish((NFT_MINT_EVENT,), event_with_timestamp);
 
-        token_id
+        Ok(token_id)
+    }
+
+    pub fn is_mint_operation_executed(env: Env, operation_hash: BytesN<32>) -> bool {
+        is_operation_executed(&env, Symbol::new(&env, "nft_mint"), operation_hash)
+    }
+
+    pub fn cleanup_mint_operation(env: Env, operation_hash: BytesN<32>) -> bool {
+        cleanup_operation(&env, Symbol::new(&env, "nft_mint"), operation_hash)
     }
 
     /// Transfer ownership of a token from one address to another

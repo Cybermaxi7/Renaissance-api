@@ -12,6 +12,7 @@ import { CreateSpinDto } from './dto/create-spin.dto';
 import { SpinResultDto } from './dto/spin-result.dto';
 import { WalletService } from '../wallet/wallet.service';
 import { TransactionType } from '../transactions/entities/transaction.entity';
+import { RateLimitInteractionService } from '../rate-limit/rate-limit-interaction.service';
 
 /**
  * Interface defining the structure of weighted outcomes for the spin wheel.
@@ -71,6 +72,7 @@ export class SpinService {
     private readonly spinRepository: Repository<Spin>,
     private readonly dataSource: DataSource,
     private readonly walletService: WalletService,
+    private readonly rateLimitService: RateLimitInteractionService,
   ) {
     // Validate configuration on startup to prevent runtime errors
     if (this.totalWeight !== 1000) {
@@ -199,6 +201,8 @@ export class SpinService {
       }
 
       await queryRunner.commitTransaction();
+
+      await this.rateLimitService.recordInteraction(userId);
 
       this.logger.log(
         `Spin executed successfully: ${savedSpin.id}, outcome: ${outcome}, payout: ${payoutAmount}`,

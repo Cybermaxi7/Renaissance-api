@@ -8,11 +8,13 @@ import { SpinSession } from './entities/spin-session.entity';
 import { WalletModule } from '../wallet/wallet.module';
 import { Transaction } from '../transactions/entities/transaction.entity';
 import { User } from 'src/users/entities/user.entity';
+import { RateLimitModule } from '../rate-limit/rate-limit.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([User, Spin, SpinSession, Transaction]),
     WalletModule,
+    RateLimitModule,
   ],
   controllers: [SpinController],
   providers: [SpinService, SpinSessionService],

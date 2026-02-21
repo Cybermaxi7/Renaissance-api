@@ -11,6 +11,7 @@ import {
   SpinGameConfig 
 } from './config/spin-game.config';
 import { SpinGameRepository } from './repositories/spin-game.repository';
+import { RateLimitInteractionService } from '../rate-limit/rate-limit-interaction.service';
 import { 
   SpinRequestDto, 
   SpinResultDto, 
@@ -37,6 +38,7 @@ export class SpinGameService {
     private readonly spinGameRepo: SpinGameRepository,
     private readonly configService: ConfigService,
     private readonly dataSource: DataSource,
+    private readonly rateLimitService: RateLimitInteractionService,
   ) {}
 
   /**
@@ -177,6 +179,8 @@ export class SpinGameService {
 
     // Check for suspicious activity
     await this.checkForSuspiciousActivity(userId, spinResult);
+
+    await this.rateLimitService.recordInteraction(userId);
 
     return {
       spinId: spinResult.id,

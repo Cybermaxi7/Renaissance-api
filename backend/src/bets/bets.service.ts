@@ -22,6 +22,7 @@ import { FreeBetVoucherService } from '../free-bet-vouchers/free-bet-vouchers.se
 import { TransactionSource } from '../wallet/entities/balance-transaction.entity';
 import { BetPlacedEvent } from '../leaderboard/domain/events/bet-placed.event';
 import { BetSettledEvent } from '../leaderboard/domain/events/bet-settled.event';
+import { RateLimitInteractionService } from '../rate-limit/rate-limit-interaction.service';
 
 export interface PaginatedBets {
   data: Bet[];
@@ -42,6 +43,7 @@ export class BetsService {
     private readonly walletService: WalletService,
     private readonly eventBus: EventBus,
     private readonly freeBetVoucherService: FreeBetVoucherService,
+    private readonly rateLimitService: RateLimitInteractionService,
   ) {}
 
 
@@ -165,6 +167,8 @@ export class BetsService {
           createBetDto.predictedOutcome,
         ),
       );
+
+      await this.rateLimitService.recordInteraction(userId);
 
       return savedBet;
     } catch (error) {

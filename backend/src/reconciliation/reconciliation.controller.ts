@@ -10,9 +10,9 @@ import {
   DefaultValuePipe,
   NotFoundException,
 } from '@nestjs/common';
+import { ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../common/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
+import { RolesGuard, Roles } from '../common/guards/roles.guard';
 import { UserRole } from '../users/entities/user.entity';
 import {
   ReconciliationService,
@@ -28,7 +28,8 @@ import {
 
 @Controller('admin/reconciliation')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.ADMIN)
+@Roles(UserRole.ADMIN, UserRole.BACKEND_EXECUTOR)
+@ApiBearerAuth('JWT-auth')
 export class ReconciliationController {
   constructor(
     private readonly reconciliationService: ReconciliationService,
