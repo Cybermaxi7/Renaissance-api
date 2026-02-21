@@ -11,6 +11,9 @@ import { Spin, SpinStatus, SpinOutcome } from './entities/spin.entity';
 import { CreateSpinDto } from './dto/create-spin.dto';
 import { SpinResultDto } from './dto/spin-result.dto';
 import { WalletService } from '../wallet/wallet.service';
+import { SorobanService } from '../blockchain/soroban.service';
+import { EventBus } from '@nestjs/cqrs';
+import { SpinSettledEvent } from '../../leaderboard/domain/events/spin-settled.event';
 import { TransactionType } from '../transactions/entities/transaction.entity';
 import { RateLimitInteractionService } from '../rate-limit/rate-limit-interaction.service';
 
@@ -73,6 +76,8 @@ export class SpinService {
     private readonly dataSource: DataSource,
     private readonly walletService: WalletService,
     private readonly rateLimitService: RateLimitInteractionService,
+    private readonly sorobanService: SorobanService,
+    private readonly eventBus: EventBus,
   ) {
     // Validate configuration on startup to prevent runtime errors
     if (this.totalWeight !== 1000) {
@@ -132,6 +137,11 @@ export class SpinService {
         return this.mapToResultDto(existingSpin);
       }
 
+      // Enforce minimum stake (10 XLM)
+      if (createSpinDto.stakeAmount < 10) {
+        throw new BadRequestException('Minimum stake is 10 XLM');
+      }
+
       // Deduct stake amount from wallet using the same QueryRunner (locks user's row)
       const walletResult = await this.walletService.updateUserBalanceWithQueryRunner(
         queryRunner,
@@ -156,6 +166,16 @@ export class SpinService {
         createSpinDto.stakeAmount,
       );
 
+      // Before creating DB record, perform a treasury check with the smart contract
+      try {
+        await this.sorobanService.invokeContract('treasury_check', [
+          payoutAmount,
+        ]);
+      } catch (scError) {
+        this.logger.error('Treasury check failed on-chain', scError);
+        throw new BadRequestException('Treasury unavailable for requested payout');
+      }
+
       // Create spin record
       const spin = queryRunner.manager.create(Spin, {
         userId,
@@ -174,9 +194,17 @@ export class SpinService {
 
       const savedSpin = await queryRunner.manager.save(spin);
 
-      // If there's a payout, credit it to the user's wallet
+      // If there's a payout, credit it to the user's wallet and attempt on-chain distribution for XLM/NFT
       if (payoutAmount > 0) {
-        const isWithdrawable = !createSpinDto.isFreeBet;
+        // Determine reward channel
+        let rewardChannel: 'XLM' | 'NFT' | 'FREE_BET' = 'XLM';
+        if (outcome === SpinOutcome.JACKPOT) {
+          rewardChannel = 'NFT';
+        } else if (outcome === SpinOutcome.MEDIUM_WIN) {
+          rewardChannel = 'FREE_BET';
+        }
+
+        const isWithdrawable = !createSpinDto.isFreeBet && rewardChannel === 'XLM';
 
         const payoutResult = await this.walletService.updateUserBalanceWithQueryRunner(
           queryRunner,
@@ -187,6 +215,7 @@ export class SpinService {
           {
             spinPayout: payoutAmount,
             sessionId,
+            rewardChannel,
           },
           isWithdrawable,
         );
@@ -196,7 +225,29 @@ export class SpinService {
             `Failed to credit payout for spin ${savedSpin.id}`,
             payoutResult.error,
           );
-          // Don't throw here - spin is valid, just log the payout failure
+        } else {
+          // Attempt on-chain distribution for XLM or NFT (best-effort)
+          try {
+            if (rewardChannel === 'XLM') {
+              await this.sorobanService.invokeContract('distribute_reward', [
+                userId,
+                payoutAmount,
+                savedSpin.id,
+              ]);
+            } else if (rewardChannel === 'NFT') {
+              await this.sorobanService.invokeContract('mint_nft', [
+                userId,
+                savedSpin.id,
+                outcome,
+              ]);
+            }
+          } catch (scError) {
+            this.logger.warn(
+              `On-chain distribution failed for spin ${savedSpin.id}`,
+              scError,
+            );
+            // Do not fail the whole transaction for on-chain distribution issues
+          }
         }
       }
 
@@ -207,6 +258,23 @@ export class SpinService {
       this.logger.log(
         `Spin executed successfully: ${savedSpin.id}, outcome: ${outcome}, payout: ${payoutAmount}`,
       );
+
+      // Publish domain event for leaderboard updates and frontend notification
+      try {
+        this.eventBus.publish(
+          new SpinSettledEvent(
+            userId,
+            savedSpin.id,
+            outcome,
+            Number(savedSpin.stakeAmount),
+            Number(savedSpin.payoutAmount),
+            Number(savedSpin.payoutAmount) > Number(savedSpin.stakeAmount),
+            new Date(),
+          ),
+        );
+      } catch (evErr) {
+        this.logger.warn('Failed to publish SpinSettledEvent', evErr);
+      }
 
       return this.mapToResultDto(savedSpin);
     } catch (error) {

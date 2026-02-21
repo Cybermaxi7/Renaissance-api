@@ -1,17 +1,38 @@
 #![no_std]
 use soroban_sdk::{
-    contract, contractimpl, contracttype, Address, BytesN, Env, Map, Symbol,
+    contract, contractimpl, contracttype, token, Address, BytesN, Env, Map, Symbol,
 };
 use common::{
-    cleanup_operation, ensure_not_replayed, is_operation_executed, ContractError, SpinExecutedEvent,
+    cleanup_operation, ensure_not_replayed, is_operation_executed, BetPlacedEvent, ContractError,
+    SpinExecutedEvent,
 };
 
 #[contracttype]
-#[derive(Clone)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SpinExecution {
     pub spin_id: BytesN<32>,
     pub executor: Address,
     pub timestamp: u64,
+}
+
+#[contracttype]
+#[derive(Clone)]
+pub struct Bet {
+    pub bettor: Address,
+    pub amount: i128,
+    pub match_id: BytesN<32>,
+    pub bet_type: Symbol,
+    pub odds: u32,
+    pub timestamp: u64,
+}
+
+#[contracttype]
+pub enum DataKey {
+    BackendSigner,
+    UsedSpinHashes,
+    SpinExecutions,
+    Bet(BytesN<32>, Address),
+    PreventDoubleBetting,
 }
 
 #[contract]
@@ -22,7 +43,87 @@ impl BettingContract {
     /// Initialize the contract with the backend signer address
     pub fn initialize(env: Env, backend_signer: Address) {
         let storage = env.storage().persistent();
-        storage.set(&Symbol::new(&env, "backend_signer"), &backend_signer);
+        storage.set(&DataKey::BackendSigner, &backend_signer);
+    }
+
+    /// Place a bet and escrow funds
+    pub fn place_bet(
+        env: Env,
+        bettor: Address,
+        token_address: Address,
+        amount: i128,
+        match_id: BytesN<32>,
+        bet_type: Symbol,
+        odds: u32,
+    ) -> Result<(), ContractError> {
+        bettor.require_auth();
+
+        if amount <= 0 {
+            return Err(ContractError::InvalidAmount);
+        }
+
+        let storage = env.storage().persistent();
+
+        // Check if double betting is prevented
+        let prevent_double: bool = storage.get(&DataKey::PreventDoubleBetting).unwrap_or(false);
+        if prevent_double {
+            if storage.has(&DataKey::Bet(match_id.clone(), bettor.clone())) {
+                return Err(ContractError::BetAlreadyPlaced);
+            }
+        }
+
+        // Lock funds (transfer from bettor to contract)
+        let token_client = token::Client::new(&env, &token_address);
+        token_client.transfer(&bettor, &env.current_contract_address(), &amount);
+
+        // Store bet
+        let timestamp = env.ledger().timestamp();
+        let bet = Bet {
+            bettor: bettor.clone(),
+            amount,
+            match_id: match_id.clone(),
+            bet_type: bet_type.clone(),
+            odds,
+            timestamp,
+        };
+
+        storage.set(&DataKey::Bet(match_id.clone(), bettor.clone()), &bet);
+
+        // Emit bet placed event
+        let event = BetPlacedEvent {
+            bettor: bettor.clone(),
+            bet_id: Symbol::new(&env, "bet"), // Using a generic symbol or match_id as symbol
+            amount,
+        };
+        // Note: The common::BetPlacedEvent uses Symbol for bet_id. 
+        // We might want to emit a more detailed event or use Match ID.
+        // For now, let's satisfy the criteria with what's available.
+        env.events().publish((Symbol::new(&env, "bet_placed"), match_id.clone()), event);
+
+        Ok(())
+    }
+
+    /// Configure double betting prevention
+    pub fn set_prevent_double_betting(env: Env, admin: Address, prevent: bool) -> Result<(), ContractError> {
+        // Only backend signer (acting as admin) can change settings
+        // In a real scenario, you'd have a separate admin role
+        let storage = env.storage().persistent();
+        let backend_signer: Address = storage
+            .get(&DataKey::BackendSigner)
+            .ok_or(ContractError::Unauthorized)?;
+        
+        admin.require_auth();
+        if admin != backend_signer {
+            return Err(ContractError::Unauthorized);
+        }
+
+        storage.set(&DataKey::PreventDoubleBetting, &prevent);
+        Ok(())
+    }
+
+    /// Check if double betting is prevented
+    pub fn is_double_betting_prevented(env: Env) -> bool {
+        env.storage().persistent().get(&DataKey::PreventDoubleBetting).unwrap_or(false)
     }
 
     /// Execute a spin with backend signature verification
@@ -35,6 +136,7 @@ impl BettingContract {
     ///
     /// # Returns
     /// `Result<(), ContractError>`
+    /// Execute a spin with backend authorization
     pub fn execute_spin(
         env: Env,
         spin_id: BytesN<32>,
@@ -59,7 +161,7 @@ impl BettingContract {
 
         // Get backend signer
         let backend_signer: Address = storage
-            .get(&Symbol::new(&env, "backend_signer"))
+            .get(&DataKey::BackendSigner)
             .ok_or(ContractError::Unauthorized)?;
 
         // Signature verification hook; auth is currently enforced via backend signer auth.
@@ -75,7 +177,7 @@ impl BettingContract {
 
         // Store spin execution
         let executions: Map<BytesN<32>, SpinExecution> = storage
-            .get(&Symbol::new(&env, "spin_executions"))
+            .get(&DataKey::SpinExecutions)
             .unwrap_or_else(|| Map::new(&env));
 
         // Check for duplicate execution on spin ID
@@ -94,8 +196,7 @@ impl BettingContract {
         // Update storage
         let mut new_executions = executions.clone();
         new_executions.set(spin_id.clone(), execution.clone());
-        storage.set(&Symbol::new(&env, "spin_executions"), &new_executions);
-
+        storage.set(&DataKey::SpinExecutions, &new_executions);
         // Emit execution event
         let event = SpinExecutedEvent {
             spin_id: spin_id.clone(),
@@ -112,7 +213,7 @@ impl BettingContract {
     pub fn is_spin_executed(env: Env, spin_id: BytesN<32>) -> bool {
         let storage = env.storage().persistent();
         let executions: Map<BytesN<32>, SpinExecution> = storage
-            .get(&Symbol::new(&env, "spin_executions"))
+            .get(&DataKey::SpinExecutions)
             .unwrap_or_else(|| Map::new(&env));
 
         executions.get(spin_id).is_some()
@@ -122,13 +223,12 @@ impl BettingContract {
     pub fn get_spin_execution(env: Env, spin_id: BytesN<32>) -> Result<SpinExecution, ContractError> {
         let storage = env.storage().persistent();
         let executions: Map<BytesN<32>, SpinExecution> = storage
-            .get(&Symbol::new(&env, "spin_executions"))
+            .get(&DataKey::SpinExecutions)
             .unwrap_or_else(|| Map::new(&env));
 
         executions.get(spin_id).ok_or(ContractError::SpinNotFound)
     }
 
-    /// Check if a spin hash has been used (for replay attack prevention)
     pub fn is_spin_hash_used(env: Env, spin_hash: BytesN<32>) -> bool {
         is_operation_executed(&env, Symbol::new(&env, "spin_exec"), spin_hash)
     }
@@ -137,6 +237,5 @@ impl BettingContract {
         cleanup_operation(&env, Symbol::new(&env, "spin_exec"), spin_hash)
     }
 }
-
 #[cfg(test)]
 mod test;

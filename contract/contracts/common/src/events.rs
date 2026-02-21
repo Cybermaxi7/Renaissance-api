@@ -1,5 +1,7 @@
 use soroban_sdk::{contracttype, Address, BytesN, Env, Map, String, Symbol, U256};
 
+// ===== CORE EVENTS =====
+
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SpinExecutedEvent {
@@ -126,6 +128,17 @@ pub fn create_settlement_event(
         metadata: Map::new(env),
     }
 }
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct BetPlacedEvent {
+    pub bettor: Address,
+    pub bet_id: Symbol,
+    pub amount: i128,
+}
+
+// ===== EVENT CONSTANTS =====
+
 
 pub const NFT_MINT_EVENT: Symbol = Symbol::short("NFT_MINT");
 
