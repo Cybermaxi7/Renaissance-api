@@ -113,3 +113,64 @@ fn rejects_invalid_or_insufficient_updates() {
         Err(Ok(BalanceLedgerError::InsufficientWithdrawable))
     );
 }
+
+#[test]
+fn records_cumulative_user_metrics() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let backend = Address::generate(&env);
+    let user = Address::generate(&env);
+    let contract_id = env.register(BalanceLedgerContract, ());
+    let client = BalanceLedgerContractClient::new(&env, &contract_id);
+
+    client.initialize(&backend);
+
+    let first = client.record_metrics(&user, &100, &0, &100);
+    assert_eq!(
+        first,
+        UserMetrics {
+            total_staked: 100,
+            total_won: 0,
+            total_lost: 100,
+        }
+    );
+
+    let second = client.record_metrics(&user, &250, &400, &0);
+    assert_eq!(
+        second,
+        UserMetrics {
+            total_staked: 350,
+            total_won: 400,
+            total_lost: 100,
+        }
+    );
+
+    assert_eq!(client.get_metrics(&user), second);
+}
+
+#[test]
+fn rejects_negative_metric_deltas() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let backend = Address::generate(&env);
+    let user = Address::generate(&env);
+    let contract_id = env.register(BalanceLedgerContract, ());
+    let client = BalanceLedgerContractClient::new(&env, &contract_id);
+
+    client.initialize(&backend);
+
+    assert_eq!(
+        client.try_record_metrics(&user, &-1, &0, &0),
+        Err(Ok(BalanceLedgerError::InvalidAmount))
+    );
+    assert_eq!(
+        client.try_record_metrics(&user, &0, &-1, &0),
+        Err(Ok(BalanceLedgerError::InvalidAmount))
+    );
+    assert_eq!(
+        client.try_record_metrics(&user, &0, &0, &-1),
+        Err(Ok(BalanceLedgerError::InvalidAmount))
+    );
+}
