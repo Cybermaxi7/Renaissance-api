@@ -89,7 +89,7 @@ export class SpinController {
     @Request() req: any,
     @Body() createSpinDto: CreateSpinDto,
   ): Promise<SpinResultDto> {
-    const userId = req.user.id;
+    const userId = req.user.userId ?? req.user.id;
     return this.spinService.executeSpin(userId, createSpinDto);
   }
 
@@ -128,7 +128,7 @@ export class SpinController {
     description: 'Unauthorized - missing or invalid JWT token',
   })
   async getSpinHistory(@Request() req: any): Promise<any[]> {
-    const userId = req.user.id;
+    const userId = req.user.userId ?? req.user.id;
     const spins = await this.spinService.getUserSpinHistory(userId);
 
     return spins.map((spin) => ({

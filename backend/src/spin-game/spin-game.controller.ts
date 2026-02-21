@@ -35,7 +35,7 @@ export class SpinGameController {
     description: 'Returns eligibility status and remaining limits'
   })
   async checkEligibility(@Req() req: any): Promise<SpinEligibilityDto> {
-    return this.spinGameService.checkEligibility(req.user.id);
+    return this.spinGameService.checkEligibility(req.user.userId ?? req.user.id);
   }
 
   @Post('spin')
@@ -52,7 +52,7 @@ export class SpinGameController {
     @Req() req: any, 
     @Body() dto: SpinRequestDto
   ): Promise<SpinResultDto> {
-    return this.spinGameService.executeSpin(req.user.id, dto);
+    return this.spinGameService.executeSpin(req.user.userId ?? req.user.id, dto);
   }
 
   @Get('stats')
@@ -63,6 +63,6 @@ export class SpinGameController {
     description: 'Returns user statistics including total spins, wins, and profit'
   })
   async getStats(@Req() req: any): Promise<UserSpinStatsDto> {
-    return this.spinGameService.getUserStatistics(req.user.id);
+    return this.spinGameService.getUserStatistics(req.user.userId ?? req.user.id);
   }
 }

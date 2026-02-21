@@ -1,23 +1,21 @@
 import {
-  IsUUID,
-  IsNumber,
-  IsPositive,
   IsDateString,
-  IsOptional,
   IsInt,
+  IsNumber,
+  IsOptional,
+  IsPositive,
   Min,
 } from 'class-validator';
 
-export class CreateFreeBetVoucherDto {
-  @IsUUID()
-  userId: string;
-
+export class UpdateFreeBetVoucherDto {
+  @IsOptional()
   @IsNumber()
   @IsPositive()
-  amount: number;
+  amount?: number;
 
+  @IsOptional()
   @IsDateString()
-  expiresAt: string;
+  expiresAt?: string;
 
   @IsOptional()
   metadata?: Record<string, any>;

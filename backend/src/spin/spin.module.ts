@@ -11,11 +11,13 @@ import { Transaction } from '../transactions/entities/transaction.entity';
 import { User } from 'src/users/entities/user.entity';
 import { RateLimitModule } from '../rate-limit/rate-limit.module';
 import { BlockchainModule } from '../blockchain/blockchain.module';
+import { FreeBetVouchersModule } from '../free-bet-vouchers/free-bet-vouchers.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([User, Spin, SpinSession, Transaction]),
     WalletModule,
+    FreeBetVouchersModule,
     RateLimitModule,
     BlockchainModule,
     CqrsModule,

@@ -28,6 +28,7 @@ import {
   NFTReward
 } from './entities';
 import { createHash, randomBytes } from 'crypto';
+import { FreeBetVoucherService } from '../free-bet-vouchers/free-bet-vouchers.service';
 
 @Injectable()
 export class SpinGameService {
@@ -39,6 +40,7 @@ export class SpinGameService {
     private readonly configService: ConfigService,
     private readonly dataSource: DataSource,
     private readonly rateLimitService: RateLimitInteractionService,
+    private readonly freeBetVoucherService: FreeBetVoucherService,
   ) {}
 
   /**
@@ -383,13 +385,15 @@ export class SpinGameService {
     // Create free bet with expiry
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + selectedTier.validityDays);
-    
-    const freeBet = await this.spinGameRepo.createFreeBet({
+
+    const freeBet = await this.freeBetVoucherService.createVoucher({
       userId,
       amount: freeBetAmount,
-      expiresAt,
-      source: 'SPIN_GAME',
-      isWithdrawable: selectedTier.withdrawable,
+      expiresAt: expiresAt.toISOString(),
+      metadata: {
+        source: 'SPIN_GAME',
+        isWithdrawable: selectedTier.withdrawable,
+      },
     });
     
     return {
