@@ -122,10 +122,14 @@ export class AdminController {
       limit,
     };
   }
+  // ------------------------------
+  // New Analytics Endpoints (#147)
+  // ------------------------------
 
   // ------------------------------
   // New Analytics Endpoints (#147)
   // ------------------------------
+
 
   @Get('analytics/users/total')
   async totalUsers() {
