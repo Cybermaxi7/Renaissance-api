@@ -32,14 +32,13 @@ import { SpinModule } from './spin/spin.module';
 import { HealthModule } from './health/health.module';
 import { CacheConfigModule } from './common/cache/cache.module';
 import { AdminModule } from './admin/admin.module';
-
-import { LeaderboardModule } from './leaderboard/leaderboard.module';
 import { UserLeaderboardStats } from './leaderboard/entities/user-leaderboard-stats.entity';
 import { ReconciliationModule } from './reconciliation/reconciliation.module';
-
 import { LoggerModule } from './common/logger/logger.module';
 import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware';
 
+// Custom role-based guard
+import { RateLimitGuard } from './common/guards/rate-limit.guard';
 
 @Module({
   imports: [
@@ -58,7 +57,7 @@ import { CorrelationIdMiddleware } from './common/middleware/correlation-id.midd
         throttlers: [
           {
             ttl: config.get<number>('THROTTLE_TTL', 60000), // 60 seconds
-            limit: config.get<number>('THROTTLE_LIMIT', 10), // 10 requests
+            limit: config.get<number>('THROTTLE_LIMIT', 10), // default 10 requests/min
           },
         ],
       }),
@@ -105,12 +104,16 @@ import { CorrelationIdMiddleware } from './common/middleware/correlation-id.midd
   providers: [
     {
       provide: APP_GUARD,
-      useClass: ThrottlerGuard,
+      useClass: ThrottlerGuard, // baseline throttling
+    },
+    {
+      provide: APP_GUARD,
+      useClass: RateLimitGuard, // role-based limits
     },
   ],
 })
 export class AppModule {
-    configure(consumer: MiddlewareConsumer) {
+  configure(consumer: MiddlewareConsumer) {
     consumer.apply(CorrelationIdMiddleware).forRoutes('*');
   }
 }
